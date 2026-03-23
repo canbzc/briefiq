@@ -1,0 +1,29 @@
+# Ortam değişkenleri - asla commit etme
+.env
+.env.*
+
+# Veritabanı - lokal veri
+history.db
+
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build / dist
+dist/
+build/
+*.egg-info/

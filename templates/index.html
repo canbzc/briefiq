@@ -1,0 +1,1977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Freelance Brief Analyzer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @media (max-width: 600px) {
+      body { padding: 20px 14px; }
+      .cards { grid-template-columns: 1fr; }
+      .report-grid { grid-template-columns: 1fr 1fr; }
+      .action-row { flex-wrap: wrap; gap: 8px; }
+      .compare-briefs { grid-template-columns: 1fr; }
+      .compare-grid { grid-template-columns: 1fr; }
+      .apply-score-box { flex-direction: column; text-align: center; }
+      .example-chips { gap: 6px; }
+      .history-item .hi-date { display: none; }
+    }
+
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-bottom: 32px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 160px;
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 10px;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      padding: 16px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    textarea:focus { border-color: #6366f1; }
+    textarea::placeholder { color: #475569; }
+
+    .brief-quality {
+      font-size: 0.75rem;
+      margin-top: 5px;
+      text-align: right;
+    }
+
+    .brief-quality.short  { color: #f87171; }
+    .brief-quality.medium { color: #fbbf24; }
+    .brief-quality.good   { color: #4ade80; }
+
+    button {
+      margin-top: 14px;
+      padding: 12px 28px;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+
+    button:hover { background: #4f51d8; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .input-area {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 20px;
+      transition: border-color 0.2s;
+    }
+
+    .input-area:focus-within { border-color: #6366f1; }
+
+    .input-area textarea {
+      border: none;
+      background: transparent;
+      border-radius: 0;
+      padding: 4px 0;
+      margin: 0;
+    }
+
+    .input-area textarea:focus { border-color: transparent; }
+
+    .input-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .input-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .input-actions button { margin-top: 0; }
+
+    .examples-label {
+      font-size: 0.78rem;
+      color: #475569;
+      margin-top: 12px;
+      margin-bottom: 6px;
+    }
+
+    .example-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      padding: 5px 12px;
+      background: transparent;
+      border: 1px solid #2d3348;
+      border-radius: 20px;
+      color: #94a3b8;
+      font-size: 0.8rem;
+      cursor: pointer;
+      margin-top: 0;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .chip:hover { border-color: #6366f1; color: #a5b4fc; background: transparent; }
+
+    .loader {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      margin-top: 24px;
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+
+    .loader.active { display: flex; }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #2d3348;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-box {
+      display: none;
+      margin-top: 20px;
+      padding: 14px 18px;
+      background: #2d1b1b;
+      border: 1px solid #7f1d1d;
+      border-radius: 8px;
+      color: #fca5a5;
+      font-size: 0.9rem;
+    }
+
+    .error-box.active { display: block; }
+
+    .results {
+      display: none;
+      margin-top: 36px;
+    }
+
+    .results.active { display: block; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6366f1;
+      margin-bottom: 16px;
+    }
+
+    .card--req, .card--risk, .card--proposal { border-top: 2px solid rgba(124, 58, 237, 0.3); }
+    .card--risk .card-title  { color: #f59e0b; }
+    .card--proposal .card-title { color: #10b981; }
+
+    .card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 0.88rem;
+    }
+
+    .card-row .label { color: #64748b; white-space: nowrap; }
+    .card-row .value { color: #e2e8f0; text-align: right; }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .tag {
+      background: #2d3348;
+      border-radius: 5px;
+      padding: 3px 8px;
+      font-size: 0.78rem;
+      color: #94a3b8;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .badge.low    { background: #14532d; color: #4ade80; }
+    .badge.medium { background: #78350f; color: #fbbf24; }
+    .badge.high   { background: #7f1d1d; color: #f87171; }
+
+    .proceed-yes { color: #4ade80; font-weight: 600; }
+    .proceed-no  { color: #f87171; font-weight: 600; }
+
+    .risk-list { list-style: none; margin-top: 4px; }
+
+    .risk-list li {
+      padding: 8px 0;
+      border-bottom: 1px solid #2d3348;
+      font-size: 0.85rem;
+    }
+
+    .risk-list li:last-child { border-bottom: none; }
+
+    .risk-list .risk-title { color: #e2e8f0; margin-bottom: 2px; }
+    .risk-list .risk-desc  { color: #64748b; font-size: 0.8rem; line-height: 1.4; }
+
+    .budget-note {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #2d1e0f;
+      border: 1px solid #78350f;
+      border-radius: 7px;
+      color: #fbbf24;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .deadline-warning {
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: #1e1a2d;
+      border: 1px solid #4c1d95;
+      border-radius: 7px;
+      color: #a78bfa;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .apply-score-box {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+
+    .score-circle {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      border: 3px solid #2d3348;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .score-circle .score-num {
+      font-size: 1.4rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .score-circle .score-max {
+      font-size: 0.65rem;
+      color: #475569;
+      margin-top: 2px;
+    }
+
+    .score-circle.green { border-color: #4ade80; }
+    .score-circle.green .score-num { color: #4ade80; }
+    .score-circle.yellow { border-color: #fbbf24; }
+    .score-circle.yellow .score-num { color: #fbbf24; }
+    .score-circle.red { border-color: #f87171; }
+    .score-circle.red .score-num { color: #f87171; }
+
+    .score-info .score-label {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-bottom: 4px;
+    }
+
+    .score-info .score-sublabel {
+      font-size: 0.82rem;
+      color: #475569;
+    }
+
+    .rate-calc {
+      margin-top: 16px;
+      padding: 14px 16px;
+      background: #161824;
+      border: 1px dashed #2d3348;
+      border-radius: 8px;
+    }
+
+    .rate-calc-label {
+      font-size: 0.75rem;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+
+    .rate-calc-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .rate-input-wrap {
+      display: flex;
+      align-items: center;
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 6px;
+      padding: 6px 10px;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .rate-input-wrap span { color: #64748b; font-size: 0.88rem; }
+
+    .rate-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #e2e8f0;
+      font-size: 0.88rem;
+      width: 100%;
+      font-family: inherit;
+    }
+
+    .btn-calc {
+      padding: 7px 14px;
+      background: #6366f1;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.82rem;
+      cursor: pointer;
+      margin-top: 0;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-calc:hover { background: #4f51d8; }
+
+    .rate-result {
+      margin-top: 10px;
+      font-size: 0.82rem;
+      line-height: 1.6;
+      color: #94a3b8;
+      display: none;
+    }
+
+    .rate-result.active { display: block; }
+    .rate-ok   { color: #4ade80; font-weight: 600; }
+    .rate-warn { color: #fbbf24; font-weight: 600; }
+    .rate-bad  { color: #f87171; font-weight: 600; }
+
+    .final-report {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .final-report h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6366f1;
+      margin-bottom: 20px;
+    }
+
+    .report-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .report-stat .stat-label {
+      color: #64748b;
+      font-size: 0.78rem;
+      margin-bottom: 4px;
+    }
+
+    .report-stat .stat-value {
+      color: #f8fafc;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .report-summary {
+      color: #94a3b8;
+      font-size: 0.88rem;
+      line-height: 1.7;
+      border-top: 1px solid #2d3348;
+      padding-top: 16px;
+    }
+
+    .history-section {
+      margin-bottom: 32px;
+    }
+
+    .history-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #475569;
+      margin-bottom: 10px;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 8px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      gap: 12px;
+    }
+
+    .history-item:hover { border-color: #6366f1; }
+
+    .history-item .hi-type {
+      font-size: 0.88rem;
+      color: #e2e8f0;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-item .hi-price {
+      font-size: 0.82rem;
+      color: #94a3b8;
+      white-space: nowrap;
+    }
+
+    .history-item .hi-date {
+      font-size: 0.78rem;
+      color: #475569;
+      white-space: nowrap;
+    }
+
+    .history-empty {
+      font-size: 0.85rem;
+      color: #475569;
+    }
+
+    .hi-delete {
+      background: transparent;
+      border: none;
+      color: #475569;
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 0 4px;
+      margin-top: 0;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+
+    .hi-delete:hover { color: #f87171; background: transparent; }
+
+    .status-btn {
+      font-size: 0.7rem;
+      padding: 2px 7px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      margin-top: 0;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    .status-btn.applied         { background: #1e3a5f; color: #93c5fd; border-color: #1d4ed8; }
+    .status-btn.applied.active  { background: #1d4ed8; color: #fff; }
+    .status-btn.won             { background: #14532d; color: #4ade80; border-color: #166534; }
+    .status-btn.won.active      { background: #166534; color: #fff; }
+    .status-btn.lost            { background: #2d1b1b; color: #f87171; border-color: #7f1d1d; }
+    .status-btn.lost.active     { background: #7f1d1d; color: #fff; }
+    .status-btn:hover           { opacity: 0.8; }
+
+    .action-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .export-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    .btn-export {
+      margin-top: 0;
+      padding: 10px 22px;
+      background: transparent;
+      border: 1px solid #6366f1;
+      color: #a5b4fc;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .btn-export:hover { background: #6366f1; color: #fff; }
+
+    .cover-letter-section {
+      display: none;
+      margin-top: 20px;
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .cover-letter-section.active { display: block; }
+
+    .negotiate-section {
+      display: none;
+      margin-top: 16px;
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .negotiate-section.active { display: block; }
+
+    .compare-area {
+      display: none;
+      margin-top: 12px;
+    }
+
+    .compare-area.active { display: block; }
+
+    .compare-briefs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .compare-label {
+      font-size: 0.75rem;
+      color: #475569;
+      margin-bottom: 6px;
+    }
+
+    .compare-results {
+      display: none;
+      margin-top: 28px;
+    }
+
+    .compare-results.active { display: block; }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .compare-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 18px;
+    }
+
+    .compare-card.winner {
+      border-color: #4ade80;
+    }
+
+    .compare-card-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6366f1;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .winner-badge {
+      background: #14532d;
+      color: #4ade80;
+      font-size: 0.68rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .compare-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+    }
+
+    .compare-row .cl { color: #64748b; }
+    .compare-row .cv { color: #e2e8f0; font-weight: 500; }
+
+    .compare-winner-box {
+      padding: 14px 18px;
+      background: #0f2018;
+      border: 1px solid #166534;
+      border-radius: 10px;
+      color: #4ade80;
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    .compare-winner-box strong { color: #86efac; }
+
+    .btn-toggle-compare {
+      margin-top: 0;
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid #2d3348;
+      color: #64748b;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .btn-toggle-compare:hover { border-color: #6366f1; color: #a5b4fc; background: transparent; }
+    .btn-toggle-compare.active { border-color: #6366f1; color: #a5b4fc; }
+
+    .brief-gaps {
+      display: none;
+      margin-bottom: 16px;
+      padding: 14px 18px;
+      background: #1e1a0f;
+      border: 1px solid #78350f;
+      border-radius: 10px;
+    }
+
+    .brief-gaps.active { display: block; }
+
+    .brief-gaps-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #fbbf24;
+      margin-bottom: 10px;
+    }
+
+    .brief-gaps ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .brief-gaps li {
+      font-size: 0.85rem;
+      color: #d97706;
+      padding-left: 14px;
+      position: relative;
+      line-height: 1.5;
+    }
+
+    .brief-gaps li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: #fbbf24;
+    }
+
+    .negotiate-section h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #fbbf24;
+      margin-bottom: 16px;
+    }
+
+    .negotiate-text {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      line-height: 1.8;
+      white-space: pre-wrap;
+    }
+
+    .cover-letter-section h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6366f1;
+      margin-bottom: 16px;
+    }
+
+    .cover-letter-text {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      line-height: 1.8;
+      white-space: pre-wrap;
+    }
+
+    .cover-letter-spinner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #94a3b8;
+      font-size: 0.88rem;
+    }
+
+    .cl-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    .btn-copy {
+      padding: 8px 18px;
+      background: transparent;
+      border: 1px solid #2d3348;
+      border-radius: 8px;
+      color: #64748b;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+      margin-top: 0;
+    }
+
+    .btn-copy:hover { border-color: #6366f1; color: #a5b4fc; background: transparent; }
+    .btn-copy.copied { border-color: #4ade80; color: #4ade80; }
+
+    /* ── Topbar ── */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15, 17, 23, 0.85);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid #1e2130;
+      margin: -40px -20px 32px;
+      padding: 0 20px;
+    }
+
+    .topbar-inner {
+      max-width: 860px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .topbar-logo-icon {
+      width: 30px;
+      height: 30px;
+      background: linear-gradient(135deg, #6366f1, #818cf8);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .topbar-logo-text {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #f8fafc;
+    }
+
+    .topbar-logo-text span {
+      color: #818cf8;
+    }
+
+    .topbar-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .topbar-nav a {
+      font-size: 0.82rem;
+      color: #64748b;
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .topbar-nav a:hover { color: #e2e8f0; background: #1e2130; }
+    .topbar-nav a.active { color: #a5b4fc; background: #1e2130; }
+    .topbar-nav a.logout { color: #64748b; }
+    .topbar-nav a.logout:hover { color: #f87171; background: #2d1b1b; }
+
+    .topbar-divider {
+      width: 1px;
+      height: 18px;
+      background: #2d3348;
+      margin: 0 6px;
+    }
+
+    .topbar-user {
+      font-size: 0.8rem;
+      color: #475569;
+      padding: 4px 8px;
+    }
+
+    @media (max-width: 600px) {
+      .topbar-logo-text { display: none; }
+      .topbar-user { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-inner">
+      <a class="topbar-logo" href="/">
+        <div class="topbar-logo-icon">B</div>
+        <span class="topbar-logo-text">Brief<span>IQ</span></span>
+      </a>
+      <nav class="topbar-nav">
+        <span class="topbar-user">{{ username }}</span>
+        <div class="topbar-divider"></div>
+        <a href="/" class="active">Analyzer</a>
+        <a href="/stats">Stats</a>
+        <div class="topbar-divider"></div>
+        <a href="/logout" class="logout">Logout</a>
+      </nav>
+    </div>
+  </div>
+
+  <div class="container">
+    <p class="subtitle">Paste a client brief and let the 3-agent system do the rest.</p>
+
+    <!-- Input alanı -->
+    <div class="input-area">
+      <div class="brief-quality" id="briefQuality"></div>
+      <textarea id="brief" placeholder="I need a landing page for my restaurant. It should have a menu section, contact form, and Google Maps integration. Mobile friendly is a must. Budget is around $200-300. Need it done in 2 weeks."></textarea>
+
+      <div class="input-bottom">
+        <div class="example-chips">
+          <button class="chip" onclick="loadExample('landing')">Landing Page</button>
+          <button class="chip" onclick="loadExample('ecommerce')">E-Commerce</button>
+          <button class="chip" onclick="loadExample('dashboard')">Dashboard</button>
+          <button class="chip" onclick="loadExample('mobile')">Mobile App</button>
+        </div>
+        <div class="input-actions">
+          <button class="btn-toggle-compare" id="toggleCompareBtn" onclick="toggleCompare()">Compare</button>
+          <button id="analyzeBtn" onclick="analyze()">Analyze Brief</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Karşılaştırma modu -->
+    <div class="compare-area" id="compareArea">
+      <div class="compare-briefs">
+        <div>
+          <div class="compare-label">Brief A</div>
+          <textarea id="briefA" style="height:120px;" placeholder="Paste first brief here..."></textarea>
+        </div>
+        <div>
+          <div class="compare-label">Brief B</div>
+          <textarea id="briefB" style="height:120px;" placeholder="Paste second brief here..."></textarea>
+        </div>
+      </div>
+      <button id="compareBtn" onclick="compareBriefs()" style="background:#6366f1; color:#fff; border:none; border-radius:8px; padding:10px 24px; font-size:0.9rem; cursor:pointer; margin-top:10px;">Compare</button>
+    </div>
+
+    <!-- Karşılaştırma sonuçları -->
+    <div class="compare-results" id="compareResults"></div>
+
+    <div class="loader" id="loader">
+      <div class="spinner"></div>
+      <span id="loaderText">Extracting requirements...</span>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="results" id="results">
+      <div class="cards">
+
+        <!-- Requirements Card -->
+        <div class="card card--req">
+          <div class="card-title">&#128203; Requirements</div>
+          <div class="card-row">
+            <span class="label">Project Type</span>
+            <span class="value" id="r-type">—</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Scope</span>
+            <span class="value" id="r-scope">—</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Deadline</span>
+            <span class="value" id="r-deadline">—</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Budget</span>
+            <span class="value" id="r-budget">—</span>
+          </div>
+          <div class="card-row" style="flex-direction: column; align-items: flex-start;">
+            <span class="label" style="margin-bottom: 6px;">Features</span>
+            <div class="tag-list" id="r-features"></div>
+          </div>
+          <div class="card-row" style="flex-direction: column; align-items: flex-start; margin-top: 4px;">
+            <span class="label" style="margin-bottom: 6px;">Tech Stack</span>
+            <div class="tag-list" id="r-tech"></div>
+          </div>
+        </div>
+
+        <!-- Risk Card -->
+        <div class="card card--risk">
+          <div class="card-title">&#9888;&#65039; Risk Analysis</div>
+          <div class="card-row">
+            <span class="label">Risk Level</span>
+            <span id="risk-level">—</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Proceed?</span>
+            <span id="risk-proceed">—</span>
+          </div>
+          <div class="card-row" style="flex-direction: column; align-items: flex-start; margin-top: 4px;">
+            <span class="label" style="margin-bottom: 6px;">Red Flags</span>
+            <div class="tag-list" id="risk-flags"></div>
+          </div>
+          <ul class="risk-list" id="risk-list" style="margin-top: 12px;"></ul>
+        </div>
+
+        <!-- Proposal Card -->
+        <div class="card card--proposal">
+          <div class="card-title">&#128176; Proposal</div>
+          <div class="card-row">
+            <span class="label">Market Rate</span>
+            <span class="value" id="p-market">—</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Suggested Price</span>
+            <span class="value" id="p-price">—</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Budget Realistic?</span>
+            <span class="value" id="p-realistic">—</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Est. Duration</span>
+            <span class="value" id="p-days">—</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Est. Hours</span>
+            <span class="value" id="p-hours">—</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Hourly Equiv.</span>
+            <span class="value" id="p-hourly">—</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Tone</span>
+            <span class="value" id="p-tone">—</span>
+          </div>
+          <div id="p-tier-upgrade" class="budget-note" style="display:none; border-color: #1d4ed8; background: #1e1a2d; color: #93c5fd;"></div>
+          <div id="p-budget-note" class="budget-note" style="display:none;"></div>
+          <div id="p-deadline-warning" class="deadline-warning" style="display:none;"></div>
+
+          <!-- Saatlik oran hesaplayıcı -->
+          <div class="rate-calc">
+            <div class="rate-calc-label">My hourly rate calculator</div>
+            <div class="rate-calc-row">
+              <div class="rate-input-wrap">
+                <span>$</span>
+                <input class="rate-input" id="myRateInput" type="number" min="1" placeholder="e.g. 25" />
+                <span>/hr</span>
+              </div>
+              <button class="btn-calc" onclick="calcMyRate()">Calculate</button>
+            </div>
+            <div class="rate-result" id="rateResult"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Brief Gaps uyarıları -->
+      <div class="brief-gaps" id="briefGaps">
+        <div class="brief-gaps-title">Brief Gaps</div>
+        <ul id="briefGapsList"></ul>
+      </div>
+
+      <!-- Should I Apply? skoru -->
+      <div class="apply-score-box" id="applyScoreBox">
+        <div class="score-circle" id="scoreCircle">
+          <span class="score-num" id="scoreNum">—</span>
+          <span class="score-max">/100</span>
+        </div>
+        <div class="score-info">
+          <div class="score-label" id="scoreLabel">—</div>
+          <div class="score-sublabel">Should I Apply?</div>
+        </div>
+      </div>
+
+      <!-- Final Report -->
+      <div class="final-report">
+        <h2>Final Report</h2>
+        <div class="report-grid">
+          <div class="report-stat">
+            <div class="stat-label">Risk Level</div>
+            <div class="stat-value" id="f-risk">—</div>
+          </div>
+          <div class="report-stat">
+            <div class="stat-label">Proceed?</div>
+            <div class="stat-value" id="f-proceed">—</div>
+          </div>
+          <div class="report-stat">
+            <div class="stat-label">Suggested Price</div>
+            <div class="stat-value" id="f-price">—</div>
+          </div>
+          <div class="report-stat">
+            <div class="stat-label">Est. Duration</div>
+            <div class="stat-value" id="f-days">—</div>
+          </div>
+        </div>
+        <div class="report-summary" id="f-summary">—</div>
+      </div>
+      <div class="action-row">
+        <button class="btn-export" id="negotiateBtn" style="display:none; border-color:#fbbf24; color:#fbbf24;" onclick="generateNegotiationScript('en')">Negotiate (EN)</button>
+        <button class="btn-export" id="negotiateBtnTr" style="display:none; border-color:#fbbf24; color:#fbbf24;" onclick="generateNegotiationScript('tr')">Negotiate (TR)</button>
+        <button class="btn-export" onclick="generateCoverLetter('en')">Cover Letter (EN)</button>
+        <button class="btn-export" onclick="generateCoverLetter('tr')">Cover Letter (TR)</button>
+        <button class="btn-export" id="copyTextBtn" onclick="copyAsText()">Copy as Text</button>
+        <button class="btn-export" onclick="exportPDF()">Export PDF</button>
+      </div>
+    </div>
+
+    <!-- Müzakere Scripti Bölümü -->
+    <div class="negotiate-section" id="negotiateSection">
+      <h2>Negotiation Script</h2>
+      <div id="negotiateContent"></div>
+    </div>
+
+    <!-- Cover Letter Bölümü -->
+    <div class="cover-letter-section" id="coverLetterSection">
+      <h2>Cover Letter</h2>
+      <div id="coverLetterContent"></div>
+    </div>
+
+    <!-- Geçmiş analizler — en alta -->
+    <div class="history-section" id="historySection" style="display:none;">
+      <div class="history-label">Recent Analyses</div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </div>
+
+  <script>
+    // Son analiz verisini tut (PDF export için)
+    let lastData = null;
+    let lastCoverLetter = null;
+
+    // Sayfa yüklenince geçmişi getir + brief'i geri yükle
+    document.addEventListener("DOMContentLoaded", () => {
+      loadHistory();
+      // Kaydedilmiş brief varsa geri yükle
+      const saved = localStorage.getItem("draft_brief");
+      if (saved) document.getElementById("brief").value = saved;
+    });
+
+    // Brief değişince localStorage'a kaydet (debounce: 500ms)
+    let saveTimer = null;
+    document.addEventListener("DOMContentLoaded", () => {
+      // Ctrl+Enter → analiz başlat
+      document.getElementById("brief").addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          analyze();
+        }
+      });
+
+      document.getElementById("brief").addEventListener("input", () => {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+          localStorage.setItem("draft_brief", document.getElementById("brief").value);
+        }, 500);
+        updateBriefQuality();
+      });
+      updateBriefQuality();
+    });
+
+    async function loadHistory() {
+      try {
+        const res = await fetch("/history");
+        const items = await res.json();
+        renderHistory(items);
+      } catch (e) {
+        // History yüklenemezse sessizce geç
+      }
+    }
+
+    function renderHistory(items) {
+      const section = document.getElementById("historySection");
+      const list = document.getElementById("historyList");
+      list.innerHTML = "";
+
+      if (!items.length) {
+        section.style.display = "none";
+        return;
+      }
+
+      section.style.display = "block";
+      items.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "history-item";
+        const st = item.status || "";
+        div.innerHTML = `
+          <span class="hi-type">${item.project_type || "Unknown"}</span>
+          <span class="hi-price">${item.suggested_min != null ? "$" + item.suggested_min + "–$" + item.suggested_max : "—"}</span>
+          <span class="badge ${item.risk_level || "low"}">${(item.risk_level || "low").toUpperCase()}</span>
+          <button class="status-btn applied ${st === "applied" ? "active" : ""}" data-id="${item.id}" data-status="applied">Applied</button>
+          <button class="status-btn won ${st === "won" ? "active" : ""}" data-id="${item.id}" data-status="won">Won</button>
+          <button class="status-btn lost ${st === "lost" ? "active" : ""}" data-id="${item.id}" data-status="lost">Lost</button>
+          <span class="hi-date">${item.created_at}</span>
+          <button class="hi-delete" title="Delete" data-id="${item.id}">×</button>
+        `;
+        // Tıklayınca o analizi yükle (silme butonu hariç)
+        div.addEventListener("click", (e) => {
+          if (e.target.classList.contains("hi-delete")) return;
+          lastData = item.result;
+          lastCoverLetter = null;
+          renderResults(item.result);
+          document.getElementById("results").classList.add("active");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+        // Status butonları
+        div.querySelectorAll(".status-btn").forEach(btn => {
+          btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const newStatus = btn.classList.contains("active") ? "null" : btn.dataset.status;
+            await fetch(`/history/${id}/status`, {
+              method: "PATCH",
+              headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({status: newStatus}),
+            });
+            loadHistory();
+          });
+        });
+
+        // Silme butonu
+        div.querySelector(".hi-delete").addEventListener("click", async (e) => {
+          e.stopPropagation();
+          await fetch(`/history/${item.id}`, { method: "DELETE" });
+          loadHistory();
+        });
+        list.appendChild(div);
+      });
+    }
+
+    const loaderMessages = [
+      "Extracting requirements...",
+      "Evaluating risks...",
+      "Building proposal...",
+    ];
+
+    async function analyze() {
+      const brief = document.getElementById("brief").value.trim();
+      if (!brief) return;
+
+      const btn = document.getElementById("analyzeBtn");
+      const loader = document.getElementById("loader");
+      const errorBox = document.getElementById("errorBox");
+      const results = document.getElementById("results");
+      const loaderText = document.getElementById("loaderText");
+
+      btn.disabled = true;
+      errorBox.classList.remove("active");
+      results.classList.remove("active");
+      loader.classList.add("active");
+
+      let msgIndex = 0;
+      loaderText.textContent = loaderMessages[msgIndex];
+      const msgInterval = setInterval(() => {
+        msgIndex = (msgIndex + 1) % loaderMessages.length;
+        loaderText.textContent = loaderMessages[msgIndex];
+      }, 3000);
+
+      try {
+        const res = await fetch("/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brief }),
+        });
+
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        lastData = data;
+        renderResults(data);
+        results.classList.add("active");
+        loadHistory(); // geçmişi güncelle
+        localStorage.removeItem("draft_brief"); // taslağı temizle
+      } catch (err) {
+        errorBox.textContent = "Error: " + err.message;
+        errorBox.classList.add("active");
+      } finally {
+        clearInterval(msgInterval);
+        loader.classList.remove("active");
+        btn.disabled = false;
+      }
+    }
+
+    function renderResults({ requirements: r, risks, proposal: p }) {
+      // --- Brief Gaps ---
+      const gaps = p.brief_gaps || [];
+      const gapsBox = document.getElementById("briefGaps");
+      const gapsList = document.getElementById("briefGapsList");
+      gapsList.innerHTML = "";
+      if (gaps.length) {
+        gaps.forEach(g => {
+          const li = document.createElement("li");
+          li.textContent = g;
+          gapsList.appendChild(li);
+        });
+        gapsBox.classList.add("active");
+      } else {
+        gapsBox.classList.remove("active");
+      }
+
+      // --- Negotiate butonu: sadece medium/high risk'te göster ---
+      const riskLvl = risks.risk_level;
+      const showNeg = riskLvl === "medium" || riskLvl === "high" || (risks.red_flags || []).length > 0;
+      document.getElementById("negotiateBtn").style.display = showNeg ? "inline-block" : "none";
+      document.getElementById("negotiateBtnTr").style.display = showNeg ? "inline-block" : "none";
+      // Önceki müzakere scriptini temizle
+      document.getElementById("negotiateSection").classList.remove("active");
+      document.getElementById("negotiateContent").innerHTML = "";
+
+      // --- Apply Score ---
+      const as = p.apply_score;
+      if (as) {
+        document.getElementById("scoreNum").textContent = as.score;
+        document.getElementById("scoreLabel").textContent = as.label;
+        const circle = document.getElementById("scoreCircle");
+        circle.className = `score-circle ${as.color}`;
+      }
+
+      // --- Requirements ---
+      document.getElementById("r-type").textContent = r.project_type || "—";
+      document.getElementById("r-scope").textContent = r.estimated_scope || "—";
+      document.getElementById("r-deadline").textContent =
+        r.deadline_days ? r.deadline_days + " days" : "Not specified";
+      document.getElementById("r-budget").textContent = r.budget_mentioned
+        ? (r.budget_min > 0 ? `$${r.budget_min}–$${r.budget_max}` : `up to $${r.budget_max}`)
+        : "Not specified";
+
+      renderTags("r-features", r.main_features || []);
+      renderTags("r-tech", r.tech_stack?.length ? r.tech_stack : ["Not specified"]);
+
+      // --- Risks ---
+      document.getElementById("risk-level").innerHTML =
+        `<span class="badge ${risks.risk_level}">${risks.risk_level.toUpperCase()}</span>`;
+      document.getElementById("f-risk").textContent = risks.risk_level?.toUpperCase();
+
+      document.getElementById("risk-proceed").innerHTML = risks.proceed_recommendation
+        ? '<span class="proceed-yes">YES</span>'
+        : '<span class="proceed-no">NO</span>';
+
+      renderTags("risk-flags", risks.red_flags || [], {
+        "low budget": "red",
+        "tight deadline": "red",
+        "unclear requirements": "yellow",
+        "tight budget": "yellow",
+      });
+
+      const riskList = document.getElementById("risk-list");
+      riskList.innerHTML = "";
+      (risks.risks || []).slice(0, 4).forEach(risk => {
+        const li = document.createElement("li");
+        li.innerHTML = `<div class="risk-title">${risk.title}</div>
+                        <div class="risk-desc">${risk.description}</div>`;
+        riskList.appendChild(li);
+      });
+
+      // --- Proposal ---
+      const mr = p.market_rate_range;
+      const pr = p.suggested_price_range;
+
+      document.getElementById("p-market").textContent = mr ? `$${mr.min}–$${mr.max}` : "—";
+      document.getElementById("p-price").textContent = pr ? `$${pr.min}–$${pr.max}` : "—";
+
+      document.getElementById("p-realistic").innerHTML = p.budget_realistic === false
+        ? '<span class="proceed-no">NO</span>'
+        : '<span class="proceed-yes">YES</span>';
+
+      document.getElementById("p-days").textContent =
+        p.estimated_days ? p.estimated_days + " days" : "—";
+      document.getElementById("p-hours").textContent =
+        p.estimated_hours ? p.estimated_hours + " hrs" : "—";
+      const hr = p.hourly_rate_range;
+      document.getElementById("p-hourly").textContent =
+        hr?.min ? `$${hr.min}–$${hr.max}/hr` : "—";
+      document.getElementById("p-tone").textContent = p.proposal_tone || "—";
+
+      const upgradeEl = document.getElementById("p-tier-upgrade");
+      if (p.tier_upgrade_reason) {
+        upgradeEl.textContent = "⬆ Tier upgraded: " + p.tier_upgrade_reason;
+        upgradeEl.style.display = "block";
+      } else {
+        upgradeEl.style.display = "none";
+      }
+
+      const noteEl = document.getElementById("p-budget-note");
+      if (p.budget_note) {
+        noteEl.textContent = p.budget_note;
+        noteEl.style.display = "block";
+      } else {
+        noteEl.style.display = "none";
+      }
+
+      const warnEl = document.getElementById("p-deadline-warning");
+      if (p.deadline_warning) {
+        warnEl.textContent = p.deadline_warning;
+        warnEl.style.display = "block";
+      } else {
+        warnEl.style.display = "none";
+      }
+
+      // --- Final Report ---
+      document.getElementById("f-proceed").innerHTML = risks.proceed_recommendation
+        ? '<span class="proceed-yes">YES</span>'
+        : '<span class="proceed-no">NO</span>';
+
+      document.getElementById("f-price").textContent = pr ? `$${pr.min}–$${pr.max}` : "—";
+      document.getElementById("f-days").textContent =
+        p.estimated_days ? p.estimated_days + " days" : "—";
+      document.getElementById("f-summary").textContent = p.proposal_summary || "—";
+    }
+
+    function updateBriefQuality() {
+      const val = document.getElementById("brief").value.trim();
+      const el = document.getElementById("briefQuality");
+      const len = val.length;
+      if (len === 0) { el.textContent = ""; return; }
+      if (len < 80) {
+        el.textContent = "Brief too short — analysis may be inaccurate";
+        el.className = "brief-quality short";
+      } else if (len < 200) {
+        el.textContent = "Brief could use more detail";
+        el.className = "brief-quality medium";
+      } else {
+        el.textContent = "Brief looks good ✓";
+        el.className = "brief-quality good";
+      }
+    }
+
+    function toggleCompare() {
+      const area = document.getElementById("compareArea");
+      const btn = document.getElementById("toggleCompareBtn");
+      const isActive = area.classList.toggle("active");
+      btn.textContent = isActive ? "✕ Cancel compare" : "+ Compare two briefs";
+      btn.classList.toggle("active", isActive);
+      if (!isActive) {
+        document.getElementById("compareResults").classList.remove("active");
+        document.getElementById("compareResults").innerHTML = "";
+      }
+    }
+
+    async function compareBriefs() {
+      const briefA = document.getElementById("briefA").value.trim();
+      const briefB = document.getElementById("briefB").value.trim();
+      if (!briefA || !briefB) return;
+
+      const btn = document.getElementById("compareBtn");
+      const resultsEl = document.getElementById("compareResults");
+      btn.disabled = true;
+      btn.textContent = "Analyzing...";
+      resultsEl.innerHTML = `<div style="color:#94a3b8; font-size:0.88rem; margin-top:16px;">Analyzing both briefs in parallel...</div>`;
+      resultsEl.classList.add("active");
+
+      try {
+        // İki analizi paralel çalıştır
+        const [resA, resB] = await Promise.all([
+          fetch("/analyze", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({brief: briefA}) }),
+          fetch("/analyze", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({brief: briefB}) }),
+        ]);
+        const [dataA, dataB] = await Promise.all([resA.json(), resB.json()]);
+
+        if (dataA.error || dataB.error) throw new Error(dataA.error || dataB.error);
+
+        renderComparison(dataA, dataB);
+      } catch (err) {
+        resultsEl.innerHTML = `<div style="color:#f87171; font-size:0.88rem; margin-top:12px;">Error: ${err.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Compare";
+      }
+    }
+
+    function renderComparison(dataA, dataB) {
+      const pA = dataA.proposal, pB = dataB.proposal;
+      const rA = dataA.risks,    rB = dataB.risks;
+      const reqA = dataA.requirements, reqB = dataB.requirements;
+      const prA = pA.suggested_price_range, prB = pB.suggested_price_range;
+      const scoreA = pA.apply_score?.score ?? 0;
+      const scoreB = pB.apply_score?.score ?? 0;
+      const winnerIdx = scoreA >= scoreB ? "A" : "B";
+      const winner = winnerIdx === "A" ? dataA : dataB;
+      const winnerP = winner.proposal;
+      const winnerR = winner.risks;
+
+      const makeCard = (label, data, p, r, req, pr, isWinner) => `
+        <div class="compare-card ${isWinner ? "winner" : ""}">
+          <div class="compare-card-title">
+            Brief ${label}
+            ${isWinner ? '<span class="winner-badge">★ Winner</span>' : ""}
+          </div>
+          <div class="compare-row"><span class="cl">Apply Score</span><span class="cv">${p.apply_score?.score ?? "—"}/100</span></div>
+          <div class="compare-row"><span class="cl">Risk Level</span><span class="cv">${r.risk_level?.toUpperCase()}</span></div>
+          <div class="compare-row"><span class="cl">Suggested Price</span><span class="cv">${pr ? "$"+pr.min+"–$"+pr.max : "—"}</span></div>
+          <div class="compare-row"><span class="cl">Duration</span><span class="cv">${p.estimated_days} days</span></div>
+          <div class="compare-row"><span class="cl">Hourly Equiv.</span><span class="cv">${p.hourly_rate_range?.min ? "$"+p.hourly_rate_range.min+"–$"+p.hourly_rate_range.max+"/hr" : "—"}</span></div>
+          <div class="compare-row"><span class="cl">Red Flags</span><span class="cv">${r.red_flags?.length ? r.red_flags.join(", ") : "None"}</span></div>
+          <div class="compare-row"><span class="cl">Budget</span><span class="cv">${req.budget_mentioned ? (req.budget_min > 0 ? "$"+req.budget_min+"–$"+req.budget_max : "up to $"+req.budget_max) : "Not specified"}</span></div>
+        </div>
+      `;
+
+      const reasons = [];
+      if (scoreA !== scoreB) reasons.push(`higher apply score (${winner.proposal.apply_score?.score}/100)`);
+      if (winnerR.red_flags?.length === 0) reasons.push("no red flags");
+      else if (winnerR.red_flags?.length < (winnerIdx === "A" ? dataB : dataA).risks.red_flags?.length) reasons.push("fewer red flags");
+      if (!winnerP.budget_note) reasons.push("budget is realistic");
+
+      const reasonText = reasons.length ? reasons.join(", ") : "higher overall score";
+
+      document.getElementById("compareResults").innerHTML = `
+        <div class="compare-grid">
+          ${makeCard("A", dataA, pA, rA, reqA, prA, winnerIdx === "A")}
+          ${makeCard("B", dataB, pB, rB, reqB, prB, winnerIdx === "B")}
+        </div>
+        <div class="compare-winner-box">
+          <strong>Recommendation: Brief ${winnerIdx}</strong> — ${reasonText}.
+          ${Math.abs(scoreA - scoreB) <= 5 ? " Scores are close — review both carefully." : ""}
+        </div>
+      `;
+    }
+
+    async function generateNegotiationScript(lang = 'en') {
+      if (!lastData) return;
+
+      const section = document.getElementById("negotiateSection");
+      const content = document.getElementById("negotiateContent");
+
+      section.classList.add("active");
+      content.innerHTML = `<div class="cover-letter-spinner"><div class="spinner"></div><span>Writing negotiation script...</span></div>`;
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      try {
+        const res = await fetch("/negotiate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...lastData, lang }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        content.innerHTML = `
+          <div class="negotiate-text" id="negText">${data.script}</div>
+          <div class="cl-actions">
+            <button class="btn-copy" id="copyNegBtn" onclick="copyNegotiation()">Copy</button>
+          </div>
+        `;
+      } catch (err) {
+        content.innerHTML = `<div style="color:#f87171;font-size:0.88rem;">Error: ${err.message}</div>`;
+      }
+    }
+
+    function copyNegotiation() {
+      const text = document.getElementById("negText")?.textContent;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById("copyNegBtn");
+        btn.textContent = "Copied!";
+        btn.classList.add("copied");
+        setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+      });
+    }
+
+    function calcMyRate() {
+      if (!lastData) return;
+      const myRate = parseFloat(document.getElementById("myRateInput").value);
+      if (!myRate || myRate <= 0) return;
+
+      const p = lastData.proposal;
+      const pr = p.suggested_price_range;
+      const hours = p.estimated_hours;
+      const result = document.getElementById("rateResult");
+
+      if (!pr || !hours) { result.textContent = "Not enough data."; result.classList.add("active"); return; }
+
+      // Kaç saat çalışabileceğimi hesapla
+      const myHoursMin = Math.round(pr.min / myRate);
+      const myHoursMax = Math.round(pr.max / myRate);
+
+      // Proje için gereken saat
+      const projHours = hours;
+
+      // Karşılaştırma
+      const implied_min = p.hourly_rate_range?.min || 0;
+      const implied_max = p.hourly_rate_range?.max || 0;
+
+      let statusClass, statusText;
+      if (myRate <= implied_max) {
+        statusClass = "rate-ok";
+        statusText = "✓ Your rate fits this project";
+      } else if (myRate <= implied_max * 1.5) {
+        statusClass = "rate-warn";
+        statusText = "⚠ Your rate is above the implied range — negotiation needed";
+      } else {
+        statusClass = "rate-bad";
+        statusText = "✗ Your rate is too high for this budget";
+      }
+
+      result.innerHTML = `
+        <span class="${statusClass}">${statusText}</span><br>
+        Budget covers <strong>${myHoursMin}–${myHoursMax} hrs</strong> at your rate
+        (project needs ~<strong>${projHours} hrs</strong>)<br>
+        Project implied rate: <strong>$${implied_min}–$${implied_max}/hr</strong> · Your rate: <strong>$${myRate}/hr</strong>
+      `;
+      result.classList.add("active");
+    }
+
+    function copyAsText() {
+      if (!lastData) return;
+      const { requirements: r, risks, proposal: p } = lastData;
+      const pr = p.suggested_price_range;
+      const mr = p.market_rate_range;
+
+      const lines = [
+        "── BRIEF ANALYSIS ──────────────────────",
+        "",
+        "REQUIREMENTS",
+        `Project Type : ${r.project_type || "—"}`,
+        `Scope        : ${r.estimated_scope || "—"}`,
+        `Deadline     : ${r.deadline_days ? r.deadline_days + " days" : "Not specified"}`,
+        `Budget       : ${r.budget_mentioned ? (r.budget_min > 0 ? `$${r.budget_min}–$${r.budget_max}` : `up to $${r.budget_max}`) : "Not specified"}`,
+        `Features     : ${(r.main_features || []).join(", ") || "—"}`,
+        `Tech Stack   : ${(r.tech_stack?.length ? r.tech_stack : ["Not specified"]).join(", ")}`,
+        "",
+        "RISK ANALYSIS",
+        `Risk Level   : ${risks.risk_level?.toUpperCase()}`,
+        `Proceed?     : ${risks.proceed_recommendation ? "YES" : "NO"}`,
+        `Red Flags    : ${(risks.red_flags || []).join(", ") || "None"}`,
+      ];
+
+      (risks.risks || []).forEach(risk => {
+        lines.push(`  • ${risk.title}: ${risk.description}`);
+      });
+
+      lines.push("");
+      lines.push("PROPOSAL");
+      lines.push(`Market Rate  : $${mr?.min}–$${mr?.max}`);
+      lines.push(`Suggested    : $${pr?.min}–$${pr?.max}`);
+      lines.push(`Duration     : ${p.estimated_days} days`);
+      lines.push(`Tone         : ${p.proposal_tone}`);
+
+      if (p.budget_note) lines.push(`⚠ ${p.budget_note}`);
+      if (p.deadline_warning) lines.push(`⏱ ${p.deadline_warning}`);
+
+      if ((p.key_selling_points || []).length) {
+        lines.push("");
+        lines.push("KEY SELLING POINTS");
+        p.key_selling_points.forEach(pt => lines.push(`  • ${pt}`));
+      }
+
+      if ((p.questions_to_ask_client || []).length) {
+        lines.push("");
+        lines.push("QUESTIONS TO ASK CLIENT");
+        p.questions_to_ask_client.forEach(q => lines.push(`  • ${q}`));
+      }
+
+      if (p.proposal_summary) {
+        lines.push("");
+        lines.push("SUMMARY");
+        lines.push(p.proposal_summary);
+      }
+
+      if (lastCoverLetter) {
+        lines.push("");
+        lines.push("COVER LETTER");
+        lines.push(lastCoverLetter);
+      }
+
+      lines.push("");
+      lines.push("────────────────────────────────────────");
+
+      navigator.clipboard.writeText(lines.join("\n")).then(() => {
+        const btn = document.getElementById("copyTextBtn");
+        btn.textContent = "Copied!";
+        btn.classList.add("copied");
+        setTimeout(() => { btn.textContent = "Copy as Text"; btn.classList.remove("copied"); }, 2000);
+      });
+    }
+
+    async function generateCoverLetter(lang = 'en') {
+      if (!lastData) return;
+
+      const section = document.getElementById("coverLetterSection");
+      const content = document.getElementById("coverLetterContent");
+
+      section.classList.add("active");
+      content.innerHTML = `<div class="cover-letter-spinner"><div class="spinner"></div><span>Writing cover letter...</span></div>`;
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      try {
+        const res = await fetch("/cover_letter", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...lastData, lang }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        lastCoverLetter = data.cover_letter;
+        content.innerHTML = `
+          <div class="cover-letter-text" id="clText">${data.cover_letter}</div>
+          <div class="cl-actions">
+            <button class="btn-copy" id="copyBtn" onclick="copyLetter()">Copy</button>
+          </div>
+        `;
+      } catch (err) {
+        content.innerHTML = `<div style="color:#f87171;font-size:0.88rem;">Error: ${err.message}</div>`;
+      }
+    }
+
+    function copyLetter() {
+      const text = document.getElementById("clText")?.textContent;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById("copyBtn");
+        btn.textContent = "Copied!";
+        btn.classList.add("copied");
+        setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+      });
+    }
+
+    function exportPDF() {
+      if (!lastData) return;
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+
+      const { requirements: r, risks, proposal: p } = lastData;
+      const margin = 40;
+      const pageW = doc.internal.pageSize.getWidth();
+      let y = 50;
+
+      // Renkler
+      const COLOR_ACCENT  = [99, 102, 241];   // indigo
+      const COLOR_LABEL   = [100, 116, 139];  // slate-500
+      const COLOR_TEXT    = [226, 232, 240];  // slate-200
+      const COLOR_BG      = [30, 33, 48];     // card bg
+      const COLOR_WHITE   = [248, 250, 252];
+
+      // Arka plan
+      doc.setFillColor(15, 17, 23);
+      doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), "F");
+
+      // Yardımcı: satır çiz
+      const line = (x1, y1, x2, y2, color = [45, 51, 72]) => {
+        doc.setDrawColor(...color);
+        doc.line(x1, y1, x2, y2);
+      };
+
+      // Yardımcı: section başlığı
+      const sectionTitle = (text, yPos) => {
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...COLOR_ACCENT);
+        doc.text(text.toUpperCase(), margin, yPos);
+        line(margin, yPos + 4, pageW - margin, yPos + 4);
+        return yPos + 18;
+      };
+
+      // Yardımcı: key-value satırı (uzun değerler wrap edilir)
+      const maxValueW = pageW - margin - 140 - margin;
+      const kv = (label, value, yPos) => {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...COLOR_LABEL);
+        doc.text(label, margin, yPos);
+        doc.setTextColor(...COLOR_WHITE);
+        const valLines = doc.splitTextToSize(String(value || "—"), maxValueW);
+        doc.text(valLines, margin + 140, yPos);
+        return yPos + valLines.length * 13;
+      };
+
+      // ── Başlık ──
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...COLOR_WHITE);
+      doc.text("Freelance Brief Analysis", margin, y);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...COLOR_LABEL);
+      doc.text(new Date().toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }), margin, y + 16);
+      y += 42;
+
+      // ── Requirements ──
+      y = sectionTitle("Requirements", y);
+      y = kv("Project Type", r.project_type, y);
+      y = kv("Scope", r.estimated_scope, y);
+      y = kv("Deadline", r.deadline_days ? r.deadline_days + " days" : "Not specified", y);
+      y = kv("Budget", r.budget_mentioned ? `$${r.budget_min}–$${r.budget_max}` : "Not specified", y);
+      y = kv("Features", (r.main_features || []).join(", ") || "—", y);
+      y = kv("Tech Stack", (r.tech_stack?.length ? r.tech_stack : ["Not specified"]).join(", "), y);
+      y += 8;
+
+      // ── Risk Analysis ──
+      y = sectionTitle("Risk Analysis", y);
+      y = kv("Risk Level", risks.risk_level?.toUpperCase(), y);
+      y = kv("Proceed?", risks.proceed_recommendation ? "YES" : "NO", y);
+      y = kv("Red Flags", (risks.red_flags || []).join(", ") || "None", y);
+
+      // Risk detayları
+      (risks.risks || []).forEach(risk => {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...COLOR_TEXT);
+        doc.text("• " + risk.title, margin, y);
+        y += 13;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(...COLOR_LABEL);
+        const lines = doc.splitTextToSize(risk.description, pageW - margin * 2 - 10);
+        doc.text(lines, margin + 10, y);
+        y += lines.length * 12 + 4;
+      });
+      y += 8;
+
+      // ── Proposal ──
+      y = sectionTitle("Proposal", y);
+      const mr = p.market_rate_range;
+      const pr = p.suggested_price_range;
+      y = kv("Market Rate", mr ? `$${mr.min}–$${mr.max}` : "—", y);
+      y = kv("Suggested Price", pr ? `$${pr.min}–$${pr.max}` : "—", y);
+      y = kv("Budget Realistic?", p.budget_realistic ? "YES" : "NO", y);
+      y = kv("Est. Duration", p.estimated_days ? p.estimated_days + " days" : "—", y);
+      y = kv("Proposal Tone", p.proposal_tone || "—", y);
+
+      if (p.budget_note) {
+        y += 4;
+        const boxW = pageW - margin * 2;
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        const noteText = ("! " + p.budget_note).length > 82 ? ("! " + p.budget_note).slice(0, 80) + "..." : ("! " + p.budget_note);
+        const noteLines = doc.splitTextToSize(noteText, boxW - 16);
+        const boxH = noteLines.length * 12 + 12;
+        doc.setFillColor(45, 30, 15);
+        doc.setDrawColor(120, 53, 15);
+        doc.roundedRect(margin, y - 9, boxW, boxH, 3, 3, "FD");
+        doc.setTextColor(251, 191, 36);
+        doc.text(noteLines, margin + 8, y);
+        y += boxH + 4;
+      }
+
+      if (p.deadline_warning) {
+        const boxW = pageW - margin * 2;
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        const warnText = ("! " + p.deadline_warning).length > 82 ? ("! " + p.deadline_warning).slice(0, 80) + "..." : ("! " + p.deadline_warning);
+        const warnLines = doc.splitTextToSize(warnText, boxW - 16);
+        const boxH = warnLines.length * 12 + 12;
+        doc.setFillColor(30, 26, 45);
+        doc.setDrawColor(76, 29, 149);
+        doc.roundedRect(margin, y - 9, boxW, boxH, 3, 3, "FD");
+        doc.setTextColor(167, 139, 250);
+        doc.text(warnLines, margin + 8, y);
+        y += boxH + 4;
+      }
+      y += 4;
+
+      // Key selling points
+      if ((p.key_selling_points || []).length) {
+        y = sectionTitle("Key Selling Points", y);
+        p.key_selling_points.forEach(pt => {
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(...COLOR_TEXT);
+          const lines = doc.splitTextToSize("• " + pt, pageW - margin * 2);
+          doc.text(lines, margin, y);
+          y += lines.length * 13;
+        });
+        y += 8;
+      }
+
+      // Questions to ask
+      if ((p.questions_to_ask_client || []).length) {
+        y = sectionTitle("Questions to Ask Client", y);
+        p.questions_to_ask_client.forEach(q => {
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(...COLOR_TEXT);
+          const lines = doc.splitTextToSize("• " + q, pageW - margin * 2);
+          doc.text(lines, margin, y);
+          y += lines.length * 13;
+        });
+        y += 8;
+      }
+
+      // Summary
+      if (p.proposal_summary) {
+        y = sectionTitle("Summary", y);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...COLOR_LABEL);
+        const sumLines = doc.splitTextToSize(p.proposal_summary, pageW - margin * 2);
+        doc.text(sumLines, margin, y);
+      }
+
+      // Cover letter varsa ekle
+      if (lastCoverLetter) {
+        y += 12;
+        // Sayfa taşıyorsa yeni sayfa aç
+        if (y > doc.internal.pageSize.getHeight() - 80) {
+          doc.addPage();
+          doc.setFillColor(15, 17, 23);
+          doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), "F");
+          y = 50;
+        }
+        y = sectionTitle("Cover Letter", y);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...COLOR_LABEL);
+        const clLines = doc.splitTextToSize(lastCoverLetter, pageW - margin * 2);
+        doc.text(clLines, margin, y);
+      }
+
+      // Dosya adı: proje tipi + tarih
+      const slug = (r.project_type || "brief").replace(/\s+/g, "-").toLowerCase();
+      doc.save(`brief-analysis-${slug}.pdf`);
+    }
+
+    // Örnek brief metinleri
+    const EXAMPLES = {
+      landing: `I need a landing page for my restaurant. It should have a menu section, a contact form, and Google Maps integration. Must be mobile friendly. Budget is around $200–300. Need it done in 2 weeks.`,
+      ecommerce: `We're launching an online store for handmade jewelry. We need product listings, a shopping cart, Stripe payment integration, and an order management page. Budget: $800–1200. Deadline: 6 weeks.`,
+      dashboard: `I need an admin dashboard for my SaaS product. It should show user stats, a revenue chart, and allow managing subscriptions. User authentication is required. Budget is $500–900. No strict deadline.`,
+      mobile: `Looking for a developer to build a fitness tracking app for iOS and Android. Users should be able to log workouts, set goals, and see progress charts. Budget: $3000–5000. Need it in 3 months.`,
+    };
+
+    function loadExample(key) {
+      // Seçilen örneği textarea'ya yükle
+      document.getElementById("brief").value = EXAMPLES[key];
+    }
+
+    function renderTags(id, items, colorMap = {}) {
+      const el = document.getElementById(id);
+      el.innerHTML = "";
+      items.forEach(item => {
+        const span = document.createElement("span");
+        const key = item.toLowerCase();
+        // Özel renk varsa uygula
+        if (colorMap[key] === "yellow") {
+          span.className = "tag";
+          span.style.background = "#78350f";
+          span.style.color = "#fbbf24";
+        } else if (colorMap[key] === "red") {
+          span.className = "tag";
+          span.style.background = "#7f1d1d";
+          span.style.color = "#f87171";
+        } else {
+          span.className = "tag";
+        }
+        span.textContent = item;
+        el.appendChild(span);
+      });
+    }
+  </script>
+</body>
+</html>

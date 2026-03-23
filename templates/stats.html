@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stats — Freelance Brief Analyzer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    .container { max-width: 760px; margin: 0 auto; }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+    h1 { font-size: 1.4rem; font-weight: 600; color: #f8fafc; }
+    .nav { display: flex; gap: 12px; align-items: center; }
+    .nav a {
+      font-size: 0.82rem;
+      color: #475569;
+      text-decoration: none;
+      border: 1px solid #2d3348;
+      padding: 5px 12px;
+      border-radius: 6px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .nav a:hover { color: #a5b4fc; border-color: #6366f1; }
+    .nav a.active { color: #a5b4fc; border-color: #6366f1; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-num {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #f8fafc;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .stat-label { font-size: 0.78rem; color: #475569; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .stat-card.green .stat-num { color: #4ade80; }
+    .stat-card.red   .stat-num { color: #f87171; }
+    .stat-card.blue  .stat-num { color: #93c5fd; }
+    .stat-card.yellow .stat-num { color: #fbbf24; }
+
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6366f1;
+      margin-bottom: 14px;
+    }
+
+    .info-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.88rem;
+      padding: 8px 0;
+      border-bottom: 1px solid #2d3348;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-row .lbl { color: #64748b; }
+    .info-row .val { color: #e2e8f0; font-weight: 500; }
+
+    .empty {
+      text-align: center;
+      color: #475569;
+      font-size: 0.9rem;
+      padding: 40px;
+    }
+
+    @media (max-width: 600px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <h1>My Stats</h1>
+      <nav class="nav">
+        <span style="font-size:0.82rem; color:#475569;">{{ username }}</span>
+        <a href="/">Analyzer</a>
+        <a href="/stats" class="active">Stats</a>
+        <a href="/logout">Logout</a>
+      </nav>
+    </div>
+
+    {% if stats.total == 0 %}
+    <div class="empty">No analyses yet. Go analyze some briefs!</div>
+    {% else %}
+
+    <!-- Ana metrikler -->
+    <div class="grid">
+      <div class="stat-card">
+        <div class="stat-num">{{ stats.total }}</div>
+        <div class="stat-label">Total Analyses</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-num">{{ stats.applied }}</div>
+        <div class="stat-label">Applied</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-num">{{ stats.won }}</div>
+        <div class="stat-label">Won</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-num">{{ stats.lost }}</div>
+        <div class="stat-label">Lost</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-num">{{ stats.win_rate }}%</div>
+        <div class="stat-label">Win Rate</div>
+      </div>
+      {% if stats.avg_score %}
+      <div class="stat-card">
+        <div class="stat-num">{{ stats.avg_score }}</div>
+        <div class="stat-label">Avg Apply Score</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Detaylar -->
+    <div class="section-title">Breakdown</div>
+    <div class="info-card">
+      <div class="info-row">
+        <span class="lbl">Analyses not applied yet</span>
+        <span class="val">{{ stats.total - stats.applied }}</span>
+      </div>
+      <div class="info-row">
+        <span class="lbl">Applications pending (no result)</span>
+        <span class="val">{{ stats.pending }}</span>
+      </div>
+      <div class="info-row">
+        <span class="lbl">Best performing project type</span>
+        <span class="val">{{ stats.best_type or "Not enough data" }}</span>
+      </div>
+      <div class="info-row">
+        <span class="lbl">Application rate</span>
+        <span class="val">{% if stats.total > 0 %}{{ ((stats.applied / stats.total) * 100) | round | int }}%{% else %}—{% endif %}</span>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+</body>
+</html>

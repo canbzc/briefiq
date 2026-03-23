@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BriefIQ — Freelance Brief Analyzer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Topbar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      height: 56px;
+      border-bottom: 1px solid #1e2130;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 30px;
+      height: 30px;
+      background: linear-gradient(135deg, #6366f1, #818cf8);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .logo-text {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f8fafc;
+    }
+
+    .logo-text span { color: #818cf8; }
+
+    .topbar-links { display: flex; gap: 8px; }
+
+    .btn-nav {
+      padding: 7px 16px;
+      border-radius: 7px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .btn-nav.ghost {
+      background: transparent;
+      border: 1px solid #2d3348;
+      color: #94a3b8;
+    }
+
+    .btn-nav.ghost:hover { border-color: #6366f1; color: #a5b4fc; }
+
+    .btn-nav.primary {
+      background: #6366f1;
+      border: 1px solid transparent;
+      color: #fff;
+    }
+
+    .btn-nav.primary:hover { background: #4f51d8; }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 80px 20px 60px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 0.75rem;
+      color: #818cf8;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      color: #f8fafc;
+      line-height: 1.15;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, #6366f1, #a5b4fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 1.05rem;
+      color: #64748b;
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    .btn-hero {
+      display: inline-block;
+      padding: 14px 36px;
+      background: #6366f1;
+      color: #fff;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-hero:hover { background: #4f51d8; transform: translateY(-1px); }
+
+    /* ── Features ── */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      max-width: 760px;
+      margin: 0 auto 80px;
+      padding: 0 20px;
+    }
+
+    .feature-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 14px;
+      padding: 24px 20px;
+    }
+
+    .feature-icon {
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+    }
+
+    .feature-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-bottom: 8px;
+    }
+
+    .feature-desc {
+      font-size: 0.82rem;
+      color: #475569;
+      line-height: 1.6;
+    }
+
+    .feature-card:nth-child(1) { border-top: 2px solid #6366f1; }
+    .feature-card:nth-child(2) { border-top: 2px solid #f59e0b; }
+    .feature-card:nth-child(3) { border-top: 2px solid #10b981; }
+
+    /* ── Auth ── */
+    .auth-section {
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 0 20px 80px;
+    }
+
+    .auth-tabs {
+      display: flex;
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 20px;
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 8px;
+      text-align: center;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: #475569;
+      cursor: pointer;
+      border-radius: 7px;
+      transition: background 0.2s, color 0.2s;
+      user-select: none;
+    }
+
+    .auth-tab.active { background: #6366f1; color: #fff; }
+
+    .auth-form { display: none; }
+    .auth-form.active { display: block; }
+
+    .auth-box {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 14px;
+      padding: 28px;
+    }
+
+    .field { margin-bottom: 16px; }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+
+    input[type="email"],
+    input[type="password"],
+    input[type="text"] {
+      width: 100%;
+      background: #0f1117;
+      border: 1px solid #2d3348;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 0.92rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    input:focus { border-color: #6366f1; }
+
+    .hint { font-size: 0.75rem; color: #475569; margin-top: 4px; }
+
+    .btn-submit {
+      width: 100%;
+      padding: 11px;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+    }
+
+    .btn-submit:hover { background: #4f51d8; }
+
+    .flash-error {
+      background: #2d1b1b;
+      border: 1px solid #7f1d1d;
+      border-radius: 7px;
+      color: #fca5a5;
+      font-size: 0.85rem;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 640px) {
+      .features { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 2rem; }
+      .topbar { padding: 0 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <a class="logo" href="#">
+      <div class="logo-icon">B</div>
+      <span class="logo-text">Brief<span>IQ</span></span>
+    </a>
+    <div class="topbar-links">
+      <a class="btn-nav ghost" href="#auth" onclick="showTab('login')">Sign In</a>
+      <a class="btn-nav primary" href="#auth" onclick="showTab('register')">Get Started</a>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-badge">AI-Powered · Freelance Tool</div>
+    <h1>Analyze briefs,<br><span>win better projects.</span></h1>
+    <p>Paste any client brief and get instant risk analysis, pricing guidance, and a tailored proposal — in seconds.</p>
+    <a class="btn-hero" href="#auth" onclick="showTab('register')">Start Analyzing</a>
+  </div>
+
+  <!-- Feature Cards -->
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">📋</div>
+      <div class="feature-title">Requirements</div>
+      <div class="feature-desc">Automatically extracts project type, budget, deadline, and tech stack from any brief.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚠️</div>
+      <div class="feature-title">Risk Analysis</div>
+      <div class="feature-desc">Flags low budgets, tight deadlines, and unclear scope before you commit to a project.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💰</div>
+      <div class="feature-title">Proposal</div>
+      <div class="feature-desc">Suggests market-rate pricing and an apply score so you only bid on the right projects.</div>
+    </div>
+  </div>
+
+  <!-- Auth Forms -->
+  <div class="auth-section" id="auth">
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login" onclick="showTab('login')">Sign In</div>
+      <div class="auth-tab" id="tab-register" onclick="showTab('register')">Create Account</div>
+    </div>
+
+    <!-- Login -->
+    <div class="auth-form active" id="form-login">
+      <div class="auth-box">
+        {% if error %}
+        <div class="flash-error">{{ error }}</div>
+        {% endif %}
+        <form method="POST" action="/login">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" name="email" required placeholder="you@example.com" />
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" name="password" required placeholder="••••••••" />
+          </div>
+          <button type="submit" class="btn-submit">Sign In</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Register -->
+    <div class="auth-form" id="form-register">
+      <div class="auth-box">
+        <form method="POST" action="/register">
+          <div class="field">
+            <label>Username</label>
+            <input type="text" name="username" required placeholder="johndoe" minlength="3" />
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" name="email" required placeholder="you@example.com" />
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" name="password" required placeholder="••••••••" minlength="6" />
+            <div class="hint">At least 6 characters</div>
+          </div>
+          <button type="submit" class="btn-submit">Create Account</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showTab(tab) {
+      document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+      document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+      document.getElementById('form-login').classList.toggle('active', tab === 'login');
+      document.getElementById('form-register').classList.toggle('active', tab === 'register');
+    }
+
+    // Register sayfasından yönlendirme hatası varsa register tab'ı aç
+    {% if reg_error %}
+    showTab('register');
+    {% endif %}
+  </script>
+
+</body>
+</html>
