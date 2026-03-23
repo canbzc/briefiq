@@ -1,28 +1,31 @@
-# Freelance Brief Analyzer
+# BriefIQ
 
-A multi-agent AI system that analyzes freelance project briefs and gives you actionable insights before you apply — built with Flask and Groq (Llama 3.3 70B).
+An AI-powered freelance brief analyzer. Paste any client brief and get instant risk analysis, pricing guidance, and a tailored proposal — in seconds.
 
-## What it does
+Built with Flask and Groq (Llama 3.3 70B).
 
-Paste a client brief → get a full analysis in seconds:
+## Features
 
 - **Requirements extraction** — project type, features, budget, deadline, tech stack
-- **Risk analysis** — low/medium/high risk, red flags (Low Budget, Tight Deadline, Unclear Requirements, Tight Budget)
+- **Risk analysis** — low/medium/high risk, red flags (Low Budget, Tight Budget, Tight Deadline, Unclear Requirements)
 - **Proposal strategy** — market rate comparison, suggested price range, hourly equivalent, proposal tone
-- **Should I Apply? score** — 0-100 score based on budget fit, deadline, clarity, and risk
+- **Should I Apply? score** — 0–100 score based on budget fit, deadline, clarity, and risk
 - **Brief Gaps** — proactive warnings about missing info (no budget, no deadline, vague scope)
 - **Cover letter generator** — ready-to-use Upwork cover letter (EN/TR)
 - **Negotiation script** — for medium/high risk briefs, a polite counter-offer message (EN/TR)
 - **Hourly rate calculator** — input your rate, see if the budget works for you
-- **Compare two briefs** — analyze two briefs side by side, get a winner recommendation
-- **Analysis history** — SQLite-backed, last 5 analyses saved and reloadable
-- **PDF & text export** — export full analysis (with cover letter) as PDF or plain text
+- **Compare two briefs** — analyze side by side, get a winner recommendation
+- **Analysis history** — SQLite-backed, last 20 analyses saved and reloadable
+- **Application tracking** — mark analyses as Applied / Won / Lost
+- **Stats page** — win rate, avg apply score, best project type
+- **PDF & text export** — export full analysis as PDF or plain text
+- **Auth system** — register/login, each user sees only their own data
 
 ## Tech Stack
 
-- **Backend:** Python, Flask, Groq API (Llama 3.3 70B)
+- **Backend:** Python, Flask, Flask-Login, Groq API (Llama 3.3 70B)
 - **Frontend:** Vanilla JS, no framework
-- **Database:** SQLite (local)
+- **Database:** SQLite
 - **PDF:** jsPDF (CDN)
 
 ## Setup
@@ -30,8 +33,8 @@ Paste a client brief → get a full analysis in seconds:
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-username/freelance-brief-analyzer.git
-cd freelance-brief-analyzer
+git clone https://github.com/your-username/briefiq.git
+cd briefiq
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -43,6 +46,7 @@ Create a `.env` file in the root:
 
 ```
 GROQ_API_KEY=your_groq_api_key_here
+SECRET_KEY=your_secret_key_here
 ```
 
 Get a free Groq API key at [console.groq.com](https://console.groq.com).
@@ -74,11 +78,11 @@ CoverLetterAgent   →  on demand, EN or TR
 NegotiationAgent   →  on demand, only for medium/high risk
 ```
 
-Key design decision: **pricing and risk logic is deterministic Python** (not LLM). LLM is only used for generating readable text. This makes the tool consistent and fast.
+Key design decision: **pricing and risk logic is deterministic Python** (not LLM). LLM is only used for generating readable text. This makes the tool fast and consistent.
 
 ## Market Data
 
-Prices are based on Upwork 2024-2025 data:
+Prices based on Upwork 2024–2025 data:
 
 | Project Type | Price Range | Timeline |
 |---|---|---|
